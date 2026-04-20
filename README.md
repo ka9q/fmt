@@ -39,10 +39,9 @@ command line arguments:
 ```
 
 Two external file attributes are extracted from the .wav file:
-```
-"unixstarttime" (UTC start of file)  
-"frequency" (radio frequency corresponding to 0 Hz in the IQ data)
-```
+
+>unixstarttime" (UTC start of file)  
+>frequency" (radio frequency corresponding to 0 Hz in the IQ data)
 
 If the start time is available, you may specify the starting time of the measurement period with -S as a UTC time.
 Otherwise use -s to give an offset in decimal seconds relative to the start of the file.
@@ -51,11 +50,11 @@ If the frequency is available, the final estimate will be given as a radio frequ
 
 The -v option enables dumping of the individual FFT results: the time within the analysis
 interval, the frequency estimate, the energy relative to the average, and several flags related to the statistical processing:
-```
-*outlier* means the estimated frequency was outside the range given by the -l and -h options  
-*weak* means the energy in the estimate was below a threshold that defaults to -15 dB relative to the average energy of all windows  
-*trimmed* means the (otherwise good) frequency estimate was in the bottom or top 10% (can be changed with -t)
-```
+
+>*outlier* means the estimated frequency was outside the range given by the -l and -h options  
+>*weak* means the energy in the estimate was below a threshold that defaults to -15 dB relative to the average energy of all windows  
+>*trimmed* means the (otherwise good) frequency estimate was in the bottom or top 10% (can be changed with -t)
+
 
 
 
