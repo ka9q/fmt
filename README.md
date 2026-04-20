@@ -45,10 +45,10 @@ Two external file attributes are extracted from the .wav file:
 *unixstarttime* (UTC start of file)  
 *frequency* (radio frequency corresponding to 0 Hz in the IQ data)
 
-If the start time is available, you may specify the starting time of the measurement period with -S as a UTC time.
+If the *unixstarttime* attribute is present, you may specify the starting time of the measurement period with -S as a UTC time.
 Otherwise use -s to give an offset in decimal seconds relative to the start of the file.
 
-If the frequency is available, the final estimate will be given as a radio frequency, otherwise it will be relative to zero frequency in the input file.
+If the *frequency* attribute is present, the final estimate will be given as a radio frequency, otherwise it will be relative to zero frequency in the input file.
 
 The -v option enables dumping of the individual FFT results: the time within the analysis
 interval, the frequency estimate, the energy relative to the average, and several flags related to the statistical processing:
