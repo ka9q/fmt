@@ -20,7 +20,9 @@ The surviving windows are then sorted by frequency and the tails are trimmed off
 Finally, a weighted mean of the trimmed windows is calculated along with an RMS error estimate.
 
 Sample use:  
+```
 fmt -v -w 3.0 -i 1.5 -S '2026-04-17 02:49:06.587' -d 60.078 -l 90. -h 110 7065k2026-04-17T02:38:34.8Z.wav
+```
 
 command line arguments:  
 ```
