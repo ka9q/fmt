@@ -18,6 +18,7 @@
 	 -h [Hz]      upper limit of search (may be negative)
 	 -t [0.0 to .99] Trim fraction (default 0.10)
 	 -O [oversample] FFT zero-padding ratio, default 4 (pad time domain data to 4x length)
+	 -o [Hz]      threshold for discarding frequency outliers from median (1 hz default)
 
     The file argument should be produced by pcmrecord (part of ka9q-radio)
     as a 16-bit PCM .wav file with 2 channels (IQ).
@@ -532,7 +533,7 @@ int main(int argc,char *argv[]){
   double hop_sec = 0;
   double start = -INFINITY;
   double duration_sec = INFINITY;
-  double outlier = 1.0; // Hz; estimates greater than this are discarded
+  double outlier_hz = 1.0; // Hz; estimates greater than this are discarded
   int oversample = 4;
   double min_rel_power_db = -15.0; // dB threshold for accepting a window estimate
   struct timespec start_time = {0};
@@ -589,7 +590,7 @@ int main(int argc,char *argv[]){
       duration_sec = strtod(optarg,NULL);
       break;
     case 'o':
-      outlier = strtod(optarg,NULL);
+      outlier_hz = strtod(optarg,NULL);
       break;
     case 'O':
       oversample = strtol(optarg,NULL,0);
@@ -753,7 +754,7 @@ int main(int argc,char *argv[]){
   fprintf(stdout,"analysis start @ %'.3lf sec, duration %'.3lf sec, freq_lo %'.3lf Hz, freq_hi %'.3lf Hz, win %'.3lf sec, hop %'.3lf sec\n",
 	  start,duration_sec,freq_lo,freq_hi, win_sec, hop_sec);
   fprintf(stdout,"outlier thresh %'.3lf Hz, FFT oversample %d, min power %.1lf dB trim fraction %.2lf\n",
-	  outlier,oversample,min_rel_power_db,trim_fraction);
+	  outlier_hz,oversample,min_rel_power_db,trim_fraction);
 
   if(Verbose)
     fprintf(stdout,"Buffer at %p + offset %'ld = %p\n",iq,start_sample,iq + start_sample);
@@ -779,7 +780,7 @@ int main(int argc,char *argv[]){
 		     freq_lo,
 		     freq_hi,
 		     min_rel_power_db,
-		     outlier,
+		     outlier_hz,
 		     trim_fraction,
 		     &est,
 		     &n_est,
