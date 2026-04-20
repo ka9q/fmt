@@ -1,8 +1,7 @@
 /*
   Frequency estimator for ARRL Frequency Measuring Test (FMT)
   18 Apr 2026 - KA9Q (with help from ChatGPT)
-  Requires FFTW3:
-   gcc -O2 -Wall -o fmt fmt.c -lfftw3 -lm
+  Requires FFTW3
 
    Sample use:
    fmt -v -w 3.0 -i 1.5 -S '2026-04-17 02:49:06.587' -d 60.078 -l 90. -h 110 7065k2026-04-17T02:38:34.8Z.wav
@@ -195,18 +194,21 @@ static int estimate_window_frequency(const float complex *x,  // input window
     return -1;
 
   // Need neighbors for interpolation
-  if (best_k == 0 || best_k == nfft - 1) {
-    double f = (best_k <= nfft / 2) ? (fs * best_k / nfft)
-      : (fs * (best_k - nfft) / nfft);
-    assert(!isnan(f) && !isnan(best_p));
-    *freq_hz_out = f;
+  if(best_k == nfft/2 - 1){
+    // Most positive frequency
+    *freq_hz_out = fs * best_k / nfft;
     *power_out = best_p;
     return 0;
   }
-
-  double pm1 = normf(fft_out[best_k - 1]);
+  if(best_k == nfft/2){
+    // Most negative frequency
+    *freq_hz_out = fs * (best_k - nfft) / nfft;
+    *power_out = best_p;
+    return 0;
+}
+  double pm1 = normf(fft_out[best_k == 0 ? nfft-1 : best_k - 1]);
   double p0  = normf(fft_out[best_k]);
-  double pp1 = normf(fft_out[best_k + 1]);
+  double pp1 = normf(fft_out[best_k == nfft-1 ? 0 : best_k + 1]);
 
   assert(pm1 > 0);
   double ym1 = log(pm1 + 1e-300);
@@ -251,7 +253,7 @@ static int summarize_estimates(estimate_t *est,
 
   // Find average power
   double pavg = 0;
-  for (int i = 1; i < n_est; i++) {
+  for (int i = 0; i < n_est; i++) {
     pavg += est[i].power;
   }
   pavg = 10 * log10(pavg / n_est); // convert to dB
@@ -700,7 +702,7 @@ int main(int argc,char *argv[]){
     struct tm *tmp;
     time_t t = file_time.tv_sec + (long)floor(start);
     long ns = file_time.tv_nsec + llrint(1e9*fmod(start,1.0));
-    if(ns > 1000000000){
+    if(ns >= 1000000000){
       ns -= 1000000000;
       t++;
     }
@@ -750,13 +752,14 @@ int main(int argc,char *argv[]){
     fprintf(stdout,"freq_hi forced to +Fs/2 = %.1lf\n",freq_hi);
   }
 
-  long start_sample = llround(start * fs);
-  if(start_sample >= num_samp){
+  long start_frame = llround(start * fs);
+  if(start_frame >= num_samp){
     fprintf(stdout,"start after end of file\n");
     exit(1);
   }
-  if(duration_sec > start + (double)num_samp / fs)
-    duration_sec = start + (double)num_samp / fs;
+  double available_sec = (double)num_samp / fs - start;
+  if(duration_sec > available_sec)
+    duration_sec = available_sec;
   if(hop_sec == 0)
     hop_sec = win_sec * 0.5; // default to 50% overlap
 
@@ -767,7 +770,7 @@ int main(int argc,char *argv[]){
 	  outlier_hz,oversample,min_rel_power_db,trim_fraction);
 
   if(Verbose)
-    fprintf(stdout,"Buffer at %p + offset %'ld = %p\n",iq,start_sample,iq + start_sample);
+    fprintf(stdout,"Buffer at %p + offset %'ld = %p\n",iq,start_frame,iq + start_frame);
 
   estimate_t *est = NULL;
   int n_est = 0;
@@ -782,6 +785,7 @@ int main(int argc,char *argv[]){
   int win_n = (int)llround(win_sec * fs);
   int nfft = oversample * win_n;
 
+  fftwf_init_threads();
   fftwf_plan_with_nthreads(N_internal_threads);
   bool sr = fftwf_import_system_wisdom();
   fprintf(stdout,"fftwf_import_system_wisdom() %s\n",sr ? "succeeded" : "failed");
@@ -810,7 +814,7 @@ int main(int argc,char *argv[]){
     }
   }
 
-  if (estimate_track(iq + start_sample,(int64_t)llrint(duration_sec * fs),
+  if (estimate_track(iq + start_frame,(int64_t)llrint(duration_sec * fs),
 		     fs,
 		     win_sec,
 		     hop_sec,
