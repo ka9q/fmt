@@ -4,7 +4,7 @@ ifdef SANITIZE
 endif
 
 
-CFLAGS += -Wall -O3 -ga
+CFLAGS += -Wall -O3 -g
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   CFLAGS += -I/opt/local/include
