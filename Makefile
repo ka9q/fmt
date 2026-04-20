@@ -1,0 +1,29 @@
+ifdef SANITIZE
+     CFLAGS += -fsanitize=address -fsanitize=undefined
+     LDFLAGS += -fsanitize=address -fsanitize=undefined
+endif
+
+
+CFLAGS += -Wall -O3
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  CFLAGS += -I/opt/local/include
+  LDFLAGS  += -L/opt/local/lib
+  SOFLAGS = -bundle -Wl,-undefined,dynamic_lookup
+else
+  LDLIBS += -lbsd
+  SOFLAGS = -shared
+endif
+
+
+all: fmt
+
+fmt: fmt.o load_wav.o
+	cc $(LDFLAGS) -o fmt fmt.o load_wav.o $(LDLIBS) -lfftw3f -lm
+
+clean:
+	rm -f fmt *.o
+
+fmt.o: fmt.c
+
+load_wav.o: load_wav.c
