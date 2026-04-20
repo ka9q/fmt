@@ -19,6 +19,7 @@
 	 -t [0.0 to .99] Trim fraction (default 0.10)
 	 -O [oversample] FFT zero-padding ratio, default 4 (pad time domain data to 4x length)
 	 -o [Hz]      threshold for discarding frequency outliers from median (1 hz default)
+	 -m [dB]      threshold for discarding weak bins (15 dB default)
 
     The file argument should be produced by pcmrecord (part of ka9q-radio)
     as a 16-bit PCM .wav file with 2 channels (IQ).
@@ -596,7 +597,7 @@ int main(int argc,char *argv[]){
       oversample = strtol(optarg,NULL,0);
       break;
     case 'm':
-      min_rel_power_db = strtod(optarg,NULL);
+      min_rel_power_db = -fabs(strtod(optarg,NULL)); // ensure it's negative
       break;
     case '?':
     default:;
