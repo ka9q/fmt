@@ -25,7 +25,7 @@
      "unixstarttime" (UTC start of file)
      "frequency" (radio frequency corresponding to 0 Hz in the IQ data)
 
-    sample rate is extracted from the .wav header     
+    sample rate is extracted from the .wav header
 
     The -v option enables dumping of the individual FFT results: the time within the analysis
     interval, the frequency estimate, and the energy relative to the average.
@@ -34,7 +34,7 @@
     and spacing (windows can and probably should overlap, eg, by 50%). The estimated frequency
     is extracted using quadratic interpolation from the two bins surrounding the peak bin
     within the allowed range.
-    
+
  */
 
 #define _GNU_SOURCE 1
@@ -62,9 +62,10 @@ typedef struct {
   double time_sec;    // midpoint time of window */
   double freq_hz;     // estimated frequency */
   double power;       // peak power */
-  bool    valid;      // true if accepted so far
+  int sequence;       // index in sort by frequency
+  bool valid;         // true if accepted so far
   bool weak;          // True if rejected due to low energy
-  bool trimmed;       // true if in trimmed tails of distribution 
+  bool trimmed;       // true if in trimmed tails of distribution
   bool outlier;       // true if discarded as outlier
 } estimate_t;
 
@@ -103,8 +104,8 @@ static int cmp_double(const void *a, const void *b){
 }
 
 static int cmp_estimate_freq(const void *a, const void *b){
-  const estimate_t *ea = (const estimate_t *)a;
-  const estimate_t *eb = (const estimate_t *)b;
+  const estimate_t *ea = *(const estimate_t **)a;
+  const estimate_t *eb = *(const estimate_t **)b;
   if (ea->freq_hz < eb->freq_hz) return -1;
   if (ea->freq_hz > eb->freq_hz) return 1;
   return 0;
@@ -155,27 +156,27 @@ static int estimate_window_frequency(const float complex *x,  // input window
     mean += x[i];
   }
   mean /= (double)n;
-  
+
   for (int i = 0; i < n; i++) {
     fft_in[i] = (x[i] - mean) * window[i];
   }
   for (int i = n; i < nfft; i++) {
     fft_in[i] = 0;
   }
-  
+
   fftwf_execute(plan);
-  
+
   // Search only requested frequency span
   int best_k = -1;
   double best_p = -1.0;
-  
+
   for (int k = 0; k < nfft; k++) {
     // fftfreq-like mapping
     double f = (k <= nfft / 2) ? (fs * k / nfft) : (fs * (k - nfft) / nfft);
-    
+
     if (f < search_lo_hz || f > search_hi_hz)
       continue;
-    
+
     double p = normf(fft_out[k]);
     if (p > best_p) {
       best_p = p;
@@ -194,24 +195,24 @@ static int estimate_window_frequency(const float complex *x,  // input window
     *power_out = best_p;
     return 0;
   }
-  
+
   double pm1 = normf(fft_out[best_k - 1]);
   double p0  = normf(fft_out[best_k]);
   double pp1 = normf(fft_out[best_k + 1]);
-  
+
   assert(pm1 > 0);
   double ym1 = log(pm1 + 1e-300);
   assert(p0 > 0);
   double y0  = log(p0  + 1e-300);
   assert(pp1 > 0);
   double yp1 = log(pp1 + 1e-300);
-  
+
   double delta = quadratic_peak_offset_logpower(ym1, y0, yp1);
   assert(!isnan(delta));
   double fbin  = (best_k <= nfft / 2) ? (fs * best_k / nfft)
     : (fs * (best_k - nfft) / nfft);
   double bin_hz = fs / nfft;
-  
+
   assert(!isnan(fs) && nfft != 0);
   *freq_hz_out = fbin + delta * bin_hz;
   *power_out   = best_p;
@@ -236,17 +237,17 @@ static int summarize_estimates(estimate_t *est,
   assert(n_est > 0);
   if (n_est <= 0)
     return -1;
-  
+
   out->n_total = n_est;
   out->n_good  = 0;
-  
+
   // Find average power
   double pavg = 0;
   for (int i = 1; i < n_est; i++) {
     pavg += est[i].power;
   }
   pavg = 10 * log10(pavg / n_est); // convert to dB
-  
+
   /* Power gate */
   int n_power = 0;
   for (int i = 0; i < n_est; i++) {
@@ -259,13 +260,13 @@ static int summarize_estimates(estimate_t *est,
   assert(n_power > 0);
   if (n_power <= 0)
     return -1;
-  
+
   // Median of valid freqs
   double *tmp = malloc((size_t)n_power * sizeof(*tmp));
   assert(tmp != NULL);
   if (tmp == NULL)
     return -1;
-  
+
   int j = 0;
   for (int i = 0; i < n_est; i++) {
     if (est[i].valid){
@@ -276,7 +277,7 @@ static int summarize_estimates(estimate_t *est,
   double med = median_double(tmp, n_power);
   out->median_hz = med;
   free(tmp);
-  
+
   // Outlier gate around median
   int n_good = 0;
   for (int i = 0; i < n_est; i++) {
@@ -290,11 +291,11 @@ static int summarize_estimates(estimate_t *est,
   assert(n_good > 0);
   if (n_good <= 0)
     return -1;
-  
+
   out->n_good = n_good;
-  
+
   // Collect valid estimates and sort by frequency for trimming
-  estimate_t *good = malloc((size_t)n_good * sizeof(*good));
+  estimate_t **good = malloc((size_t)n_good * sizeof(**good));
   assert(good != NULL);
   if (good == NULL)
     return -1;
@@ -303,57 +304,66 @@ static int summarize_estimates(estimate_t *est,
   for (int i = 0; i < n_est; i++) {
     if (est[i].valid){
       assert(j < n_good);
-      good[j++] = est[i];
+      good[j++] = &est[i];
     }
   }
-  qsort(good, n_good, sizeof(*good), cmp_estimate_freq);
-  
+  qsort(good, n_good, sizeof(estimate_t **), cmp_estimate_freq);
+
   int ktrim = (int)floor(trim_fraction * n_good);
   int lo = ktrim;
   int hi = n_good - ktrim;
   if (hi <= lo) {
-    lo = 0; 
+    lo = 0;
    hi = n_good;
   }
-  
+
   // Weighted mean after trimming
+  for(int i=0; i < lo; i++){
+    good[i]->sequence = i;
+    good[i]->trimmed = true;
+  }
   double sw = 0.0, sf = 0.0;
   for (int i = lo; i < hi; i++) {
-    double w = good[i].power;
+    good[i]->sequence = i;
+    double w = good[i]->power;
     sw += w;
-    sf += w * good[i].freq_hz;
+    sf += w * good[i]->freq_hz;
   }
-  out->trimmed_weighted_mean_hz = (sw > 0.0) ? (sf / sw) : good[(lo + hi) / 2].freq_hz;
-  
+  for(int i=hi; i < n_good; i++){
+    good[i]->sequence = i;
+    good[i]->trimmed = true;
+  }
+  out->trimmed_weighted_mean_hz = (sw > 0.0) ? (sf / sw) : good[(lo + hi) / 2]->freq_hz;
+
   // Weighted linear fit: f(t) = a + b*(t - t0)
   double t0 = 0.0;
   double swt = 0.0;
   for (int i = lo; i < hi; i++) {
-    double w = good[i].power;
+    double w = good[i]->power;
     sw += 0.0; /* keep compiler quiet if reused mentally; harmless */
     swt += w;
-    t0 += w * good[i].time_sec;
+    t0 += w * good[i]->time_sec;
   }
   if (swt > 0.0)
     t0 /= swt;
   else
-    t0 = good[(lo + hi) / 2].time_sec;
-  
+    t0 = good[(lo + hi) / 2]->time_sec;
+
   double S0 = 0.0, S1 = 0.0, S2 = 0.0;
   double T0 = 0.0, T1 = 0.0;
-  
+
   for (int i = lo; i < hi; i++) {
-    double w = good[i].power;
-    double tt = good[i].time_sec - t0;
-    double ff = good[i].freq_hz;
-    
+    double w = good[i]->power;
+    double tt = good[i]->time_sec - t0;
+    double ff = good[i]->freq_hz;
+
     S0 += w;
     S1 += w * tt;
     S2 += w * tt * tt;
     T0 += w * ff;
     T1 += w * tt * ff;
   }
-  
+
   double det = S0 * S2 - S1 * S1;
   double a, b;
   if (fabs(det) < 1e-30) {
@@ -371,18 +381,18 @@ static int summarize_estimates(estimate_t *est,
   double sw_rms = 0.0;
 
   for (int i = lo; i < hi; i++) {
-    double w  = good[i].power;
-    double tt = good[i].time_sec - t0;
+    double w  = good[i]->power;
+    double tt = good[i]->time_sec - t0;
     double f_fit = a + b * tt;
-    double err = good[i].freq_hz - f_fit;
-    
+    double err = good[i]->freq_hz - f_fit;
+
     sse += w * err * err;
     sw_rms += w;
   }
   double rms = 0.0;
-  if (sw_rms > 0.0) {
+  if (sw_rms > 0.0)
     rms = sqrt(sse / sw_rms);
-  }
+
   out->residual_rms_hz = rms;
   free(good);
   return 0;
@@ -405,25 +415,25 @@ static int estimate_track(const float complex *iq,
 			  summary_t *summary_out){
   int win_n = (int)llround(win_sec * fs);
   int hop_n = (int)llround(hop_sec * fs);
-  
+
   assert (win_n > 8 && hop_n > 0 && nfft >= win_n);
-  
+
   if (win_n <= 8 || hop_n <= 0 || nfft < win_n)
     return -1;
-  
+
   int n_est = 0;
   if (nsamp >= win_n)
     n_est = 1 + (int)((nsamp - win_n) / hop_n);
-  
+
   assert(n_est > 0);
   if (n_est <= 0)
     return -1;
-  
+
   estimate_t *est = calloc((size_t)n_est, sizeof(*est));
   assert(est != NULL);
   if (est == NULL)
     return -1;
-  
+
   float *window = malloc((size_t)win_n * sizeof(*window));
   assert(window != NULL);
   if (window == NULL) {
@@ -431,7 +441,7 @@ static int estimate_track(const float complex *iq,
     return -1;
   }
   make_hann_window(window, win_n);
-  
+
   float complex *fft_in  = fftwf_malloc((size_t)nfft * sizeof(*fft_in));
   float complex *fft_out = fftwf_malloc((size_t)nfft * sizeof(*fft_out));
   assert(fft_in != NULL && fft_out != NULL);
@@ -442,7 +452,7 @@ static int estimate_track(const float complex *iq,
     if (fft_out) fftwf_free(fft_out);
     return -1;
   }
-  
+
   fftwf_plan plan = fftwf_plan_dft_1d(nfft, fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
   assert(plan != NULL);
   if (plan == NULL) {
@@ -452,7 +462,7 @@ static int estimate_track(const float complex *iq,
     fftwf_free(fft_out);
     return -1;
   }
-  
+
   int idx = 0;
   for (int64_t start = 0; start + win_n <= nsamp; start += hop_n) {
     double f_est = NAN, p_est = NAN;
@@ -473,25 +483,26 @@ static int estimate_track(const float complex *iq,
       est[idx].freq_hz  = f_est;
       est[idx].power    = p_est;
       est[idx].valid    = true;
+      est[idx].sequence = -1; // overwritten before sort of valid entries
       idx++;
     }
   }
-  
+
   fftwf_destroy_plan(plan);
   fftwf_free(fft_in);
   fftwf_free(fft_out);
   free(window);
-  
+
   if (idx <= 0) {
     free(est);
     return -1;
   }
-  
+
   if (summarize_estimates(est, idx, min_rel_power_db, outlier_hz, trim_fraction, summary_out) != 0) {
     free(est); // fails here
     return -1;
   }
-  
+
   *est_out   = est;
   *n_est_out = idx;
   return 0;
@@ -527,7 +538,7 @@ int main(int argc,char *argv[]){
   struct timespec start_time = {0};
   struct timespec file_time = {0};
   double trim_fraction = 0.1;
-  
+
   int c;
   while((c = getopt(argc,argv,"l:h:w:i:s:S:d:o:O:t:m:v?")) != -1){
     switch(c){
@@ -618,7 +629,7 @@ int main(int argc,char *argv[]){
   {
     // Look for extended file attribute "user.frequency" (linux) or "frequency" (macos)
     char att_buffer[1024] = {0}; // Shouldn't be anywhere near this long
-    
+
 #ifdef __linux__
     ssize_t as = getxattr(file,"user.frequency",att_buffer,sizeof(att_buffer) - 1);
 #else
@@ -639,7 +650,7 @@ int main(int argc,char *argv[]){
     int as = getxattr(file,"unixstarttime",att_buffer,sizeof(att_buffer) - 1,0,0);
 #endif
     if(as > 0){
-      char *ptr = NULL;      
+      char *ptr = NULL;
       file_time.tv_sec = strtol(att_buffer,&ptr,0); // integer part
       if(ptr != NULL && *ptr == '.')
 	file_time.tv_nsec = strtol(ptr+1,&ptr,0);
@@ -681,7 +692,7 @@ int main(int argc,char *argv[]){
     if(ns > 1000000000){
       ns -= 1000000000;
       t++;
-    }    
+    }
     tmp = gmtime_r(&t,&tm);
     (void)tmp;
     assert(tmp != NULL);
@@ -694,7 +705,7 @@ int main(int argc,char *argv[]){
 	    tm.tm_min,
 	    tm.tm_sec,
 	    ns);
-	    
+
   }
   if(!isfinite(start))
     start = 0; // Default to start of file if nothing else sets it
@@ -714,7 +725,7 @@ int main(int argc,char *argv[]){
   }
   if(num_chan != 2){
     // Could eventually support 1 channel (real signal) with real FFT
-    fprintf(stdout,"%s: %s has %d channels; must be 2\n",argv[0],file,num_chan);    
+    fprintf(stdout,"%s: %s has %d channels; must be 2\n",argv[0],file,num_chan);
     exit(1);
   }
 
@@ -781,7 +792,7 @@ int main(int argc,char *argv[]){
   printf("Good windows:             %'d / %'d\n", s.n_good,s.n_total);
   printf("Median freq:              %'.6lf Hz\n", s.median_hz);
   printf("Trimmed weighted mean:    %'.6lf Hz\n", s.trimmed_weighted_mean_hz);
-  
+
   printf("Drift fit ref time:       %'.3lf s\n", s.drift_ref_time_sec);
   printf("Drift fit ref freq:       %'.6lf Hz\n", s.drift_ref_freq_hz);
   printf("Drift slope:              %'.6lf Hz/s\n", s.drift_slope_hz_per_sec);
@@ -790,8 +801,8 @@ int main(int argc,char *argv[]){
   printf("Best estimate: %'.6lf +/- %'.6lf Hz\n",
 	 base_frequency + s.trimmed_weighted_mean_hz,
 	 s.residual_rms_hz);
-  
-  
+
+
   if(Verbose){
     // Average power of good windows
     double pavg = 0;
@@ -806,20 +817,25 @@ int main(int argc,char *argv[]){
       pavg = 10 * log10(pavg / n_valid);
       printf("avg power = %.1lf dB\n",pavg);
     }
-    
+
+    printf("  sec         Hz    dB   seq flags\n");
+
     for (int i = 0; i < n_est; i++) {
       double db = 10*log10(est[i].power);
       double rel_db = db - pavg;
-      printf("%'.1lf sec, %'8.3lf Hz, %'5.1lf dB",
+      printf("%'5.1lf %'10.3lf %'5.1lf",
 	     (double)est[i].time_sec,
-	     (double)est[i].freq_hz,
-	     (double)rel_db);
-      if(!est[i].valid)
-	printf(" invalid");
+	     (double)est[i].freq_hz,(double)rel_db);
+      if(est[i].sequence != -1)
+	printf(" %5d",est[i].sequence);
+      else
+	printf("      ");
       if(est[i].weak)
 	printf(" weak");
       if(est[i].outlier)
 	printf(" outlier");
+      if(est[i].trimmed)
+	printf(" trimmed");
       printf("\n");
     }
   }
@@ -827,4 +843,3 @@ int main(int argc,char *argv[]){
   free(iq);
   return 0;
 }
-
