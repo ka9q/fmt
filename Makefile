@@ -23,7 +23,7 @@ install:
 	cp -i fmt ~/bin/
 
 fmt: fmt.o load_wav.o
-	cc $(LDFLAGS) -o fmt fmt.o load_wav.o $(LDLIBS) -lfftw3f -lm
+	cc $(LDFLAGS) -o fmt fmt.o load_wav.o $(LDLIBS) -lfftw3f -lfftw3f_threads -lm
 
 clean:
 	rm -f fmt *.o

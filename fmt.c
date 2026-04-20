@@ -20,6 +20,7 @@
 	 -O [oversample] FFT zero-padding ratio, default 4 (pad time domain data to 4x length)
 	 -o [Hz]      threshold for discarding frequency outliers from median (1 hz default)
 	 -m [dB]      threshold for discarding weak bins (15 dB default)
+	 -W [file]    Local FFTW3 wisdom file to be read (in addition to system wisdom)
 
     The file argument should be produced by pcmrecord (part of ka9q-radio)
     as a 16-bit PCM .wav file with 2 channels (IQ).
@@ -55,6 +56,7 @@
 #include <locale.h>
 #include <sys/xattr.h>
 #include <time.h>
+#include <unistd.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -82,7 +84,10 @@ typedef struct {
   double residual_rms_hz;
 } summary_t;
 
-/* ---------- Utilities ---------- */
+char const *System_wisdom_file = "/etc/fftw/wisdomf";
+char const *Wisdom_file;
+int N_internal_threads = 1; // enable use of wisdom for ka9q-radio, which usually uses 1 thread
+
 
 static inline float normf(float complex x){
   return crealf(x) * crealf(x) + cimagf(x) * cimagf(x);
@@ -542,7 +547,7 @@ int main(int argc,char *argv[]){
   double trim_fraction = 0.1;
 
   int c;
-  while((c = getopt(argc,argv,"l:h:w:i:s:S:d:o:O:t:m:v?")) != -1){
+  while((c = getopt(argc,argv,"l:h:w:i:s:S:d:o:O:t:m:W:v?")) != -1){
     switch(c){
     case 't':
       trim_fraction = strtod(optarg,NULL);
@@ -598,6 +603,9 @@ int main(int argc,char *argv[]){
       break;
     case 'm':
       min_rel_power_db = -fabs(strtod(optarg,NULL)); // ensure it's negative
+      break;
+    case 'W':
+      Wisdom_file = optarg;
       break;
     case '?':
     default:;
@@ -773,6 +781,24 @@ int main(int argc,char *argv[]){
   int win_n = (int)llround(win_sec * fs);
   int nfft = oversample * win_n;
 
+  fftwf_plan_with_nthreads(N_internal_threads);
+  bool sr = fftwf_import_system_wisdom();
+  fprintf(stdout,"fftwf_import_system_wisdom() %s\n",sr ? "succeeded" : "failed");
+  if(!sr){
+    if(access(System_wisdom_file,R_OK) == -1){ // Would really like to use AT_EACCESS flag
+      fprintf(stdout,"%s not readable: %s\n",System_wisdom_file,strerror(errno));
+    }
+  }
+  if(Wisdom_file != NULL){
+    bool lr = fftwf_import_wisdom_from_filename(Wisdom_file);
+    fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",Wisdom_file,lr ? "succeeded" : "failed");
+    if(!lr){
+      if(access(Wisdom_file,R_OK) == -1){
+	fprintf(stdout,"%s not readable: %s\n",Wisdom_file,strerror(errno));
+      }
+    }
+  }
+
   if (estimate_track(iq + start_sample,(int64_t)llrint(duration_sec * fs),
 		     fs,
 		     win_sec,
@@ -806,6 +832,8 @@ int main(int argc,char *argv[]){
 
 
   if(Verbose){
+    printf("FFT points: %'d\n",nfft);
+
     // Average power of good windows
     double pavg = 0;
     int n_valid = 0;
