@@ -53,7 +53,7 @@ If the *frequency* attribute is present, the final estimate will be given as a r
 The -v option enables dumping of the individual FFT results: the time within the analysis
 interval, the frequency estimate, the energy relative to the average, and several flags related to the statistical processing:
 
-*outlier* means the estimated frequency was too far from the median estimate (default 1 Hz, change with -o)__
+*outlier* means the estimated frequency was too far from the median estimate (default 1 Hz, change with -o)  
 *weak* means the energy in the estimate was below a threshold relative to the average energy of all windows (default 15 dB, change with -m)  
 *trimmed* means the (otherwise good) frequency estimate was in the bottom or top 10% (can be changed with -t)
 
