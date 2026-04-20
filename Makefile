@@ -4,7 +4,7 @@ ifdef SANITIZE
 endif
 
 
-CFLAGS += -Wall -O3 -g
+CFLAGS += -Wall -O3 -ga
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   CFLAGS += -I/opt/local/include
@@ -17,6 +17,10 @@ endif
 
 
 all: fmt
+
+# install in user's home directory
+install:
+	cp -i fmt ~/bin/
 
 fmt: fmt.o load_wav.o
 	cc $(LDFLAGS) -o fmt fmt.o load_wav.o $(LDLIBS) -lfftw3f -lm
