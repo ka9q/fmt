@@ -40,8 +40,8 @@ command line arguments:
 
 Two external file attributes are extracted from the .wav file:
 
-unixstarttime" (UTC start of file)  
-frequency" (radio frequency corresponding to 0 Hz in the IQ data)
+*unixstarttime* (UTC start of file)  
+*frequency* (radio frequency corresponding to 0 Hz in the IQ data)
 
 If the start time is available, you may specify the starting time of the measurement period with -S as a UTC time.
 Otherwise use -s to give an offset in decimal seconds relative to the start of the file.
