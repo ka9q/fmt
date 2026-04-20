@@ -1,5 +1,6 @@
-**Frequency Measurement Test software**
-*Phil Karn, KA9Q*
+**Frequency Measurement Test software**  
+*Phil Karn, KA9Q*  
+*19 April 2026*
 
 This is software I threw together to analyze the IQ recordings I made during the April 17, 2026
 ARRL Frequency Measuring Test. I must have done something right because I came in second place,
