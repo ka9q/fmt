@@ -205,7 +205,7 @@ static int estimate_window_frequency(const float complex *x,  // input window
     *freq_hz_out = fs * (best_k - nfft) / nfft;
     *power_out = best_p;
     return 0;
-}
+  }
   double pm1 = normf(fft_out[best_k == 0 ? nfft-1 : best_k - 1]);
   double p0  = normf(fft_out[best_k]);
   double pp1 = normf(fft_out[best_k == nfft-1 ? 0 : best_k + 1]);
