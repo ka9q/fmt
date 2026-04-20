@@ -85,8 +85,9 @@ typedef struct {
 } summary_t;
 
 char const *System_wisdom_file = "/etc/fftw/wisdomf";
+char const *KA9Q_wisdom_file = "/var/lib/ka9q-radio/wisdom"; // from ka9q-radio
 char const *Wisdom_file;
-int N_internal_threads = 1; // enable use of wisdom for ka9q-radio, which usually uses 1 thread
+int N_internal_threads = 1; // ka9q-radio usually uses 1 thread
 
 
 static inline float normf(float complex x){
@@ -789,6 +790,16 @@ int main(int argc,char *argv[]){
       fprintf(stdout,"%s not readable: %s\n",System_wisdom_file,strerror(errno));
     }
   }
+  if(KA9Q_wisdom_file != NULL){
+    bool lr = fftwf_import_wisdom_from_filename(KA9Q_wisdom_file);
+    fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",KA9Q_wisdom_file,lr ? "succeeded" : "failed");
+    if(!lr){
+      if(access(KA9Q_wisdom_file,R_OK) == -1){
+	fprintf(stdout,"%s not readable: %s\n",KA9Q_wisdom_file,strerror(errno));
+      }
+    }
+  }
+
   if(Wisdom_file != NULL){
     bool lr = fftwf_import_wisdom_from_filename(Wisdom_file);
     fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",Wisdom_file,lr ? "succeeded" : "failed");
