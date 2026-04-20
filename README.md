@@ -1,4 +1,4 @@
-**Frequency Measurement Test software**  
+**Frequency Measuring Test software**  
 *Phil Karn, KA9Q*  
 *19 April 2026*
 

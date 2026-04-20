@@ -1,5 +1,5 @@
 /*
-  Frequency estimator for ARRL Frequency Measurement Test (FMT)
+  Frequency estimator for ARRL Frequency Measuring Test (FMT)
   18 Apr 2026 - KA9Q (with help from ChatGPT)
   Requires FFTW3:
    gcc -O2 -Wall -o fmt fmt.c -lfftw3 -lm
