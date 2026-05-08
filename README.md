@@ -6,9 +6,9 @@ This is software I threw together to analyze the IQ recordings I made during the
 ARRL Frequency Measuring Test. I must have done something right because I came in second place,
 so I figure I should share it.
 
-I used **ka9q-radio** (see https://github.com/ka9q/ka9q-radio) to make simultaneous IQ recordings of every frequency during the entire test period.
-I used a 16 kHz sample rate, but any will do as long as the relevant frequencies are included. At the moment, the file must have two channels
-(as implied by an IQ recording). In principle it shouldn't be hard to support mono files, ie, those from a SSB receiver, by simply using a real-to-complex
+I used **ka9q-radio** (see https://github.com/ka9q/ka9q-radio) to simultaneously record 13 frequencies during the test period: the four test frequencies (two on 80m, two on 40m), the six WWV frequencies and the three CHU frequencies. (Not all of the WWV and CHU signals were audible, of course, but it was easy to grab everything just in case.)
+I used IQ (complex) mode with a 16 kHz sample rate, but any will do as long as the relevant frequencies are included. At the moment, the file must have two channels
+(as implied by an IQ recording). In principle it shouldn't be hard to support mono files, ie, from a SSB receiver, by simply using a real-to-complex
 FFT instead of a complex-to-complex FFT, but this will require a lot of attention to edge and corner cases elsewhere in the code.
 
 The analysis involves running overlapping windowed FFTs across the analysis interval, estimating their peak frequencies by quadratic interpolation. The FFTs are
@@ -54,11 +54,11 @@ If the *frequency* attribute is present, the final estimate will be given as a r
 The -v option enables dumping of the individual FFT analysis windows: the time within the analysis
 interval, the frequency estimate, the energy relative to the average, and several flags related to the statistical processing:
 
-*outlier* - the estimated frequency was too far from the median estimate (default > +/-1 Hz, change with -o)  
-*weak* - the energy in the estimate was below a threshold relative to the average energy of all windows (default < -15 dB, change with -m)  
-*trimmed* - after sorting, the (otherwise good) frequency estimate was in the tails of the distribution, ie among the highest or lowest estimates. By default 10% of the estimates are discarded (can be changed with -t)
+*outlier* - the estimated frequency was too far from the median estimate (default > +/-1 Hz, change with -o).  
+*weak* - the energy in the estimate was below a threshold relative to the average energy of all estimates (default < -15 dB, change with -m).  
+*trimmed* - after sorting, the (otherwise good) frequency estimate was in the tails of the distribution, ie among the highest or lowest values. By default 10% are discarded, 5% from the lower end and 5% from the upper end (can be changed with -t).
 
-A bug in the version I used for the April 2026 test bypassed quadratic interpolation when the peak bin was 0 (DC) or N-1 (the first negative frequency bin just below DC). This caused
+Quadratic interpolation estimates a frequency from the strongest FFT bin and its two adjacent neighbors. A bug in the version I used for the April 2026 test bypassed quadratic interpolation when the peak was 0 (DC) or N-1 (the first negative frequency bin just below DC). This caused
 inaccurate estimates of WWV's and CHU's carrier frequencies at KFS and KPH because I recorded them with a nominal offset of 0 Hz. So I overcorrected the test
 measurements of KFS and KPH, yet they still made the green box. I guess I got lucky not to trip this bug at KA9Q. My average error was 5.9 ppb, which put me in second place (after KC3VNB).
 
