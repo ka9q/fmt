@@ -6,7 +6,7 @@ This is software I threw together to analyze the IQ recordings I made during the
 ARRL Frequency Measuring Test. I must have done something right because I came in second place,
 so I figure I should share it.
 
-I used ka9q-radio (see https://github.com/ka9q/ka9q-radio) to make simultaneous IQ recordings of every frequency during the entire test period.
+I used **ka9q-radio** (see https://github.com/ka9q/ka9q-radio) to make simultaneous IQ recordings of every frequency during the entire test period.
 I used a 16 kHz sample rate, but any will do as long as the relevant frequencies are included. At the moment, the file must have two channels
 (as implied by an IQ recording). In principle it shouldn't be hard to support mono files, ie, those from a SSB receiver, by simply using a real-to-complex
 FFT instead of a complex-to-complex FFT, but this will require a lot of attention to edge and corner cases elsewhere in the code.
@@ -15,9 +15,10 @@ The analysis involves running overlapping windowed FFTs across the analysis inte
 zero padded (by a factor of 4 by default) to help the interpolation.
 
 Then the statistical culling begins. First, windows with energy too far below the average are discarded. The default is -15 dB. Next, 
-windows with estimated frequency too far from the median are discarded. The default is +/- 1 Hz.
-The surviving windows are then sorted by frequency and the tails are trimmed off. The default is 10%.
-Finally, a weighted mean of the trimmed windows is calculated along with an RMS error estimate.
+frequency estimates too far from the median are discarded. The default is +/- 1 Hz.
+The surviving estimates are then sorted by frequency and the tails of the distribution are trimmed off.
+The default is 10%.
+Finally, a weighted mean of the surviving list of estimates is calculated along with an RMS error estimate.
 
 Sample use:  
 ```
@@ -40,7 +41,7 @@ command line arguments:
 -o [Hz]      threshold for discarding frequency outliers from median (1 hz default)  
 ```
 
-Two external file attributes are extracted from the .wav file:
+Two external file attributes are extracted from the .wav file which was produced by the **pcmrecord** program (part of **ka9q-radio**).
 
 *unixstarttime* (UTC start of file)  
 *frequency* (radio frequency corresponding to 0 Hz in the IQ data)
@@ -50,14 +51,15 @@ Otherwise use -s to give an offset in decimal seconds relative to the start of t
 
 If the *frequency* attribute is present, the final estimate will be given as a radio frequency, otherwise it will be relative to zero frequency in the input file.
 
-The -v option enables dumping of the individual FFT results: the time within the analysis
+The -v option enables dumping of the individual FFT analysis windows: the time within the analysis
 interval, the frequency estimate, the energy relative to the average, and several flags related to the statistical processing:
 
-*outlier* - the estimated frequency was too far from the median estimate (default 1 Hz, change with -o)  
-*weak* - the energy in the estimate was below a threshold relative to the average energy of all windows (default -15 dB, change with -m)  
-*trimmed* - after sorting, the (otherwise good) frequency estimate was in the tails of the distribution. By default 10% of the estimates are discarded (can be changed with -t)
+*outlier* - the estimated frequency was too far from the median estimate (default > +/-1 Hz, change with -o)  
+*weak* - the energy in the estimate was below a threshold relative to the average energy of all windows (default < -15 dB, change with -m)  
+*trimmed* - after sorting, the (otherwise good) frequency estimate was in the tails of the distribution, ie among the highest or lowest estimates. By default 10% of the estimates are discarded (can be changed with -t)
 
 A bug in the version I used for the April 2026 test bypassed quadratic interpolation when the peak bin was 0 (DC) or N-1 (the first negative frequency bin just below DC). This caused
 inaccurate estimates of WWV's and CHU's carrier frequencies at KFS and KPH because I recorded them with a nominal offset of 0 Hz. So I overcorrected the test
-measurements of KFS and KPH, yet they still made the green box. I guess I got lucky not to trip this bug at KA9Q.
+measurements of KFS and KPH, yet they still made the green box. I guess I got lucky not to trip this bug at KA9Q. My average error was 5.9 ppb, which put me in second place (after KC3VNB).
+
 
