@@ -86,7 +86,7 @@ typedef struct {
 char const *System_wisdom_file = "/etc/fftw/wisdomf";
 char const *KA9Q_wisdom_file = "/var/lib/ka9q-radio/wisdom"; // from ka9q-radio
 char const *Wisdom_file;
-int N_internal_threads = 1; // ka9q-radio usually uses 1 thread
+int N_internal_threads = 0; // ka9q-radio usually uses 1 thread
 
 
 static inline float normf(float complex x){
