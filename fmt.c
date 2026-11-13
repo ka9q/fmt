@@ -157,21 +157,12 @@ static int estimate_window_frequency(const float complex *x,  // input window
 				     const float *window,
 				     double *freq_hz_out,
 				     double *power_out){
-  // Remove mean and apply window
-  double complex mean = 0.0;
-#if 0
-  for (int i = 0; i < n; i++){
-    assert(!isnan(crealf(x[i])) && !isnan(cimag(x[i])));
-    mean += x[i];
-  }
-  mean /= (double)n;
-#endif
-  for (int i = 0; i < n; i++) {
-    fft_in[i] = (x[i] - mean) * window[i];
-  }
-  for (int i = n; i < nfft; i++) {
+  // apply window
+  for (int i = 0; i < n; i++) 
+    fft_in[i] = x[i] * window[i];
+
+  for (int i = n; i < nfft; i++)
     fft_in[i] = 0;
-  }
 
   fftwf_execute(plan);
 
@@ -255,9 +246,9 @@ static int summarize_estimates(estimate_t *est,
 
   // Find average power
   double pavg = 0;
-  for (int i = 0; i < n_est; i++) {
+  assert(n_est != 0);
+  for (int i = 0; i < n_est; i++)
     pavg += est[i].power;
-  }
   pavg = 10 * log10(pavg / n_est); // convert to dB
 
   /* Power gate */
@@ -802,7 +793,7 @@ int main(int argc,char *argv[]){
   }
   if(KA9Q_wisdom_file != NULL){
     char wis_file[PATH_MAX];
-    snprintf(wis_file,sizeof wis_file, "%s-%s",KA9Q_wisdom_file,fftwf_version);
+    snprintf(wis_file,sizeof wis_file, "%s-%s", KA9Q_wisdom_file, fftwf_version);
     bool lr = fftwf_import_wisdom_from_filename(wis_file);
     fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",wis_file,lr ? "succeeded" : "failed");
     if(!lr){
