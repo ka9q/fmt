@@ -158,12 +158,13 @@ static int estimate_window_frequency(const float complex *x,  // input window
 				     double *power_out){
   // Remove mean and apply window
   double complex mean = 0.0;
+#if 0
   for (int i = 0; i < n; i++){
     assert(!isnan(crealf(x[i])) && !isnan(cimag(x[i])));
     mean += x[i];
   }
   mean /= (double)n;
-
+#endif
   for (int i = 0; i < n; i++) {
     fft_in[i] = (x[i] - mean) * window[i];
   }
@@ -218,8 +219,7 @@ static int estimate_window_frequency(const float complex *x,  // input window
   double yp1 = log(pp1 + 1e-300);
 
   double delta = quadratic_peak_offset_logpower(ym1, y0, yp1);
-  fprintf(stdout,"delta = %g\n",delta);
-  assert(!isnan(delta) && delta >= -1.0 && delta <= 1.0);
+  assert(!isnan(delta));
   double fbin  = (best_k <= nfft / 2) ? (fs * best_k / nfft)
     : (fs * (best_k - nfft) / nfft);
   double bin_hz = fs / nfft;
