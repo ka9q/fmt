@@ -463,6 +463,8 @@ static int estimate_track(const float complex *iq,
     return -1;
   }
 
+  if(Verbose)
+    fprintf(stdout, "cof%d\n",nfft);
   fftwf_plan plan = fftwf_plan_dft_1d(nfft, fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
   assert(plan != NULL);
   if (plan == NULL) {
@@ -785,8 +787,10 @@ int main(int argc,char *argv[]){
   int win_n = (int)llround(win_sec * fs);
   int nfft = oversample * win_n;
 
-  fftwf_init_threads();
-  fftwf_plan_with_nthreads(N_internal_threads);
+  if(N_internal_threads > 0){
+    fftwf_init_threads();
+    fftwf_plan_with_nthreads(N_internal_threads);
+  }
   bool sr = fftwf_import_system_wisdom();
   fprintf(stdout,"fftwf_import_system_wisdom() %s\n",sr ? "succeeded" : "failed");
   if(!sr){
