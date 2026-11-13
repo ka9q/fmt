@@ -55,6 +55,7 @@
 #include <locale.h>
 #include <sys/xattr.h>
 #include <time.h>
+#include <limits.h>
 #include <unistd.h>
 
 #ifndef M_PI
@@ -800,15 +801,16 @@ int main(int argc,char *argv[]){
     }
   }
   if(KA9Q_wisdom_file != NULL){
-    bool lr = fftwf_import_wisdom_from_filename(KA9Q_wisdom_file);
-    fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",KA9Q_wisdom_file,lr ? "succeeded" : "failed");
+    char wis_file[PATH_MAX];
+    snprintf(wis_file,sizeof wis_file, "%s-%s",KA9Q_wisdom_file,fftwf_version);
+    bool lr = fftwf_import_wisdom_from_filename(wis_file);
+    fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",wis_file,lr ? "succeeded" : "failed");
     if(!lr){
-      if(access(KA9Q_wisdom_file,R_OK) == -1){
-	fprintf(stdout,"%s not readable: %s\n",KA9Q_wisdom_file,strerror(errno));
+      if(access(wis_file,R_OK) == -1){
+	fprintf(stdout,"%s not readable: %s\n", wis_file, strerror(errno));
       }
     }
   }
-
   if(Wisdom_file != NULL){
     bool lr = fftwf_import_wisdom_from_filename(Wisdom_file);
     fprintf(stdout,"fftwf_import_wisdom_from_filename(%s) %s\n",Wisdom_file,lr ? "succeeded" : "failed");
