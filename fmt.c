@@ -218,7 +218,7 @@ static int estimate_window_frequency(const float complex *x,  // input window
   double yp1 = log(pp1 + 1e-300);
 
   double delta = quadratic_peak_offset_logpower(ym1, y0, yp1);
-  assert(!isnan(delta));
+  assert(!isnan(delta) && delta >= 0 && delta <= 1.0);
   double fbin  = (best_k <= nfft / 2) ? (fs * best_k / nfft)
     : (fs * (best_k - nfft) / nfft);
   double bin_hz = fs / nfft;
