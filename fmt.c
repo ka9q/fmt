@@ -522,7 +522,7 @@ static int estimate_track(const float complex *iq,
 const char *Command;
 
 void usage(){
-  fprintf(stdout,"Usage: %s -l low_freq -h high_freq [-s start_sec] [-d duration_sec] [-o outlier Hz] [-O oversample_n] [-m minpowerdB] [file]\n",Command);
+  fprintf(stdout,"Usage: %s -l low_freq -h high_freq [-s start_sec | -S start_date] [-d duration_sec] [-o outlier Hz] [-O oversample_n] [-m minpowerdB] [-w window_sec] [-i hop_sec] [-W wisdom] [file]\n",Command);
 }
 
 
